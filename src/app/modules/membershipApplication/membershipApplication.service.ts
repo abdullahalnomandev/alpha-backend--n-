@@ -1,0 +1,258 @@
+import ApiError from '../../../errors/ApiError';
+import { StatusCodes } from 'http-status-codes';
+import QueryBuilder from '../../builder/QueryBuilder';
+import { IMemberShipApplication } from './membershipApplication.interface';
+import { MemberShipApplication } from './membershipApplication.model';
+import { MembershipStatus } from './membershipApplication..constant';
+import mongoose from 'mongoose';
+import { User } from '../user/user.model';
+import { emailHelper } from '../../../helpers/emailHelper';
+import { emailTemplate } from '../../../shared/emailTemplate';
+import generateRandomPassword from '../../../util/generateRandomPassword';
+import { USER_ROLES } from '../../../enums/user';
+import { MemberShipPlan } from '../membershipPlan/membershipPlan.model';
+
+// const createToDB = async (payload: IMemberShipApplication) => {
+//   const isExist = await MemberShipPlan.findOne({
+//     membershipType: payload.membershipType,
+//   });
+
+//   if (!isExist) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       `Membership type "${payload.membershipType}" not found`
+//     );
+//   }
+
+//   if (
+//     isExist?.familyMembershipOptions?.enableFamilyMembers &&
+//     (payload.familyMembers?.length ?? 0) >
+//       (isExist.familyMembershipOptions.familyMembershipLimit ?? 0)
+//   ) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       `Family member limit (${isExist.familyMembershipOptions.familyMembershipLimit}) exceeded.`
+//     );
+//   }
+
+//   const duplicate = await MemberShipApplication.findOne({
+//     email: payload.email,
+//     membershipStatus: {
+//       $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+//     },
+//   });
+
+//   if (duplicate) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       `A ${duplicate.membershipStatus.toLowerCase()} membership application already exists for the email: ${
+//         payload.email
+//       }.`
+//     );
+//   }
+
+//   payload.membershipStatus = MembershipStatus.PENDING;
+
+//   // Set expireId to 4 years from now (created date)
+//   const now = new Date();
+//   const expireDate = new Date(now.setFullYear(now.getFullYear() + 4));
+//   payload.expireId = expireDate;
+
+//   return await MemberShipApplication.create(payload);
+// };
+
+const createToDB = async (payload: IMemberShipApplication) => {
+  // Check membership plan
+  const plan = await MemberShipPlan.findOne({
+    membershipType: payload.membershipType,
+  });
+
+  if (!plan) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Membership type "${payload.membershipType}" not found`
+    );
+  }
+
+  if(!plan.familyMembershipOptions?.enableFamilyMembers && payload.familyMembers && payload.familyMembers?.length > 0) {
+    
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Family membership is not enabled for this plan.`
+    );
+  }
+
+  // Handle family members ONLY if family is enabled
+  if (plan.familyMembershipOptions?.enableFamilyMembers) {
+    const limit = plan.familyMembershipOptions.familyMembershipLimit ?? 0;
+    const count = payload.familyMembers?.length ?? 0;
+
+    if (count > limit) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Family member limit exceeded`
+      );
+    }
+  } else {
+    // If not family membership, ignore familyMembers
+    payload.familyMembers = [];
+  }
+
+  // Duplicate check by phone number
+  const phoneExists = await MemberShipApplication.findOne({
+    phone: payload.phone,
+    membershipStatus: {
+      $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+    },
+  });
+
+  if (phoneExists) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `You already applied with this phone number`
+    );
+  }
+
+  // Duplicate check by email
+  const emailExists = await MemberShipApplication.findOne({
+    email: payload.email,
+    membershipStatus: {
+      $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+    },
+  });
+
+  if (emailExists) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `You already applied with this email`
+    );
+  }
+
+  // Set default status
+  payload.membershipStatus = MembershipStatus.PENDING;
+
+  // Expiry date → 4 years
+  const expireDate = new Date();
+  expireDate.setFullYear(expireDate.getFullYear() + 4);
+  payload.expireId = expireDate;
+
+  return await MemberShipApplication.create(payload);
+};
+
+
+const getAllFromDB = async (query: Record<string, any>) => {
+  const qb = new QueryBuilder(MemberShipApplication.find(), query)
+    .paginate()
+    .search(['name', 'email', 'memberShipId', 'membershipType'])
+    .fields()
+    .filter()
+    .sort();
+
+  const data = await qb.modelQuery.lean();
+  const pagination = await qb.getPaginationInfo();
+
+  return {
+    pagination,
+    data,
+  };
+};
+
+const getByIdFromDB = async (id: mongoose.Types.ObjectId) => {
+  const application = await MemberShipApplication.findById(id).lean();
+  if (!application) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Membership application not found'
+    );
+  }
+  return application;
+};
+
+const updateInDB = async (
+  id: mongoose.Types.ObjectId,
+  payload: Partial<IMemberShipApplication>
+) => {
+  const application = await MemberShipApplication.findById(id).lean();
+  if (!application) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Membership application not found'
+    );
+  }
+
+  const previousStatus = application.membershipStatus;
+  const newStatus = payload.membershipStatus;
+
+  if (newStatus === MembershipStatus.ACTIVE && previousStatus !== MembershipStatus.ACTIVE) {
+    const existingUser = await User.findOne({ email: application.email });
+
+    if (!existingUser) {
+      const randomPassword = generateRandomPassword(12);
+
+      await User.create({
+        name: application.name,
+        email: application.email,
+        phone: application.phone,
+        password: randomPassword,
+        verified: true,
+        application_form:application._id
+      });
+
+      const emailData = emailTemplate.membershipApproved({
+        email: application.email,
+        name: application.name,
+        password: randomPassword,
+        memberShipId: application.memberShipId || '',
+        phone: application.phone
+      });
+      emailHelper.sendEmail(emailData);
+    }
+  }
+
+  // If status is being changed to REJECTED
+  if (
+    newStatus === MembershipStatus.REJECTED &&
+    previousStatus !== MembershipStatus.REJECTED
+  ) {
+    // Send rejection email
+    const emailData = emailTemplate.membershipRejected({
+      email: application.email,
+      name: application.name,
+    });
+    emailHelper.sendEmail(emailData);
+  }
+
+  // Update the application
+  const updated = await MemberShipApplication.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  if (!updated) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Membership application not found'
+    );
+  }
+
+  return updated;
+};
+
+const deleteFromDB = async (id: mongoose.Types.ObjectId) => {
+  const deleted = await MemberShipApplication.findByIdAndDelete(id).lean();
+  if (!deleted) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'Membership application not found'
+    );
+  }
+  return deleted;
+};
+
+export const MemberShipApplicationService = {
+  createToDB,
+  getAllFromDB,
+  getByIdFromDB,
+  updateInDB,
+  deleteFromDB,
+};
