@@ -13,6 +13,12 @@ router.post(
 );
 
 router.post(
+  '/admin-login',
+  // validateRequest(AuthValidation.createLoginZodSchema),
+  AuthController.adminLoginUser
+);
+
+router.post(
   '/resend-otp',
   validateRequest(AuthValidation.createResendOTPZodSchema),
   AuthController.resendOTPtoDB

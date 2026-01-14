@@ -61,31 +61,86 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<{ message: strin
 const updateUserToDB = async (
   userId: string,
   payload: Partial<IUser>
-): Promise<Partial<IUser | null>> => {
+): Promise<IUser | null> => {
 
-  // console.log({userId,payload})
+  console.log("payload", userId, payload);
 
-
-  const isExistUser = await User.isExistUserById(userId) as IUser;
+  const isExistUser = await User.findById(userId);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  //unlink file here
-  if (payload) {
-    if (isExistUser.profileImage === payload.profileImage) {
-      unlinkFile(isExistUser.profileImage as string);
-    }
+  // unlink old image ONLY if image changed
+  if (
+    payload.profileImage &&
+    isExistUser.profileImage &&
+    isExistUser.profileImage !== payload.profileImage
+  ) {
+    unlinkFile(isExistUser.profileImage);
   }
-  const updateDoc = await User.findOneAndUpdate({ _id: userId }, payload, {
-    new: true,
-  });
 
-  return updateDoc;
+  // prevent empty update
+  if (Object.keys(payload).length === 0) {
+    return isExistUser;
+  }
+
+  const updatedUser = await User.findOneAndUpdate(
+    { _id: userId },
+    { $set: payload },
+    {
+      new: true,
+      runValidators: true,
+      strict: true,
+    }
+  );
+  console.log(updatedUser);
+
+  return updatedUser;
+};
+const updateSingleUserToDB = async (
+  userId: string,
+  payload: Partial<IUser>
+): Promise<IUser | null> => {
+
+  console.log("payload", userId, payload);
+
+  const isExistUser = await User.findById(userId);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  // unlink old image ONLY if image changed
+  if (
+    payload.profileImage &&
+    isExistUser.profileImage &&
+    isExistUser.profileImage !== payload.profileImage
+  ) {
+    unlinkFile(isExistUser.profileImage);
+  }
+
+  // prevent empty update
+  if (Object.keys(payload).length === 0) {
+    return isExistUser;
+  }
+
+  const updatedUser = await User.findOneAndUpdate(
+    { _id: userId },
+    { $set: payload },
+    {
+      new: true,
+      runValidators: true,
+      strict: true,
+    }
+  );
+  console.log(updatedUser);
+
+  return updatedUser;
 };
 
-const getAllUsers = async (query: Record<string, any>) => {
-  const result = new QueryBuilder(User.find(), query)
+
+const getAllUsers = async (query: Record<string, any> , userId: string) => {
+  console.log(userId)
+  const result = new QueryBuilder(User.find({ _id: { $ne: userId } }), query)
     .paginate()
     .search(userSearchableField)
     .fields()
@@ -191,5 +246,6 @@ export const UserService = {
   getAllUsers,
   updateUserToDB,
   getProfile,
-  getStatistics
+  getStatistics,
+  updateSingleUserToDB
 };

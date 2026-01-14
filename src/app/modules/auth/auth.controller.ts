@@ -41,6 +41,18 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const adminLoginUser = catchAsync(async (req: Request, res: Response) => {
+  const { ...loginData } = req.body;
+  const result = await AuthService.adminloginUserFromDB(loginData);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Admin logged in successfully.',
+    data: { token: result.createToken },
+  });
+});
+
 
 const forgetPassword = catchAsync(async (req: Request, res: Response) => {
   const email = req.body.email;
@@ -99,5 +111,6 @@ export const AuthController = {
   forgetPassword,
   resetPassword,
   resendOTPtoDB,
-  changePassword
+  changePassword,
+  adminLoginUser
 };

@@ -11,28 +11,28 @@ const router = express.Router();
 router
   .route('/')
   .post(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     fileUploadHandler(),
     MemberShipFeatureController.create
   )
   .get(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     MemberShipFeatureController.getAll
   );
 
 router
   .route('/:id')
   .get(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     MemberShipFeatureController.getById
   )
   .patch(
       fileUploadHandler(),
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     MemberShipFeatureController.update
   )
   .delete(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     MemberShipFeatureController.remove
   );
 

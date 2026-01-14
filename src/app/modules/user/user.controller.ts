@@ -4,6 +4,7 @@ import catchAsync from '../../../shared/catchAsync';
 import { getMultipleFilesPath, getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import { UserService } from './user.service';
+import { USER_ROLES } from '../../../enums/user';
 
 
 //create user
@@ -28,7 +29,7 @@ const updateUser = catchAsync(
     const userId = req.user?.id;
     let profileImage = getSingleFilePath(req.files, 'profileImage');
 
-    const { name, preferences, restaurant_crowd_status} = req.body;
+    const { name, preferences, restaurant_crowd_status , status} = req.body;
 
     const data: any = {};
 
@@ -36,9 +37,38 @@ const updateUser = catchAsync(
     if (name != null) data.name = name;
     if (preferences != null) data.preferences = preferences;
     if (restaurant_crowd_status != null) data.restaurant_crowd_status = restaurant_crowd_status;
+    if(req?.user?.role === USER_ROLES.SUPER_ADMIN && req?.body?.role != null) data.role = req?.body?.role
 
-     console.log({data:req.body})
     const result = await UserService.updateUserToDB(userId, data);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User updated successfully',
+      data: result,
+    });
+  }
+);
+
+//update single user
+const updateSingleUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const userId = req.params?.id;
+    let profileImage = getSingleFilePath(req.files, 'profileImage');
+
+    const { name, preferences, restaurant_crowd_status, status} = req.body;
+
+    const data: any = {};
+
+    if (profileImage) data.profileImage = profileImage;
+    if (name != null) data.name = name;
+    if (preferences != null) data.preferences = preferences;
+    if (restaurant_crowd_status != null) data.restaurant_crowd_status = restaurant_crowd_status;
+    if(req?.user?.role === USER_ROLES.SUPER_ADMIN && req?.body?.role != null) data.role = req?.body?.role
+    if (status) data.status = status
+
+    const result = await UserService.updateSingleUserToDB(userId, data);
 
     sendResponse(res, {
       success: true,
@@ -51,7 +81,7 @@ const updateUser = catchAsync(
 
 // GET all users
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserService.getAllUsers(req.query);
+  const result = await UserService.getAllUsers(req.query , req.user?.id);
 
   sendResponse(res, {
     success: true,
@@ -92,5 +122,6 @@ export const UserController = {
   createNewUser,
   getAllUsers,
   getProfile,
-  getStatistics
+  getStatistics,
+  updateSingleUser
 };

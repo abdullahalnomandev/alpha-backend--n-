@@ -13,28 +13,28 @@ router
   .post(
     fileUploadHandler(),
     validateRequest(SponsorValidation.createZodSchema),
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     SponsorController.create
   )
   .get(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     SponsorController.getAll
   );
 
 router
   .route('/:id')
   .get(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     SponsorController.getById
   )
   .patch(
     fileUploadHandler(),
     validateRequest(SponsorValidation.updateZodSchema),
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     SponsorController.update
   )
   .delete(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     SponsorController.remove
   );
 

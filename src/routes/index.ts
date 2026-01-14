@@ -12,6 +12,7 @@ import { ExclusiveOfferRoutes } from '../app/modules/exclusiveOffer/exclusiveOff
 import { CategoryRoutes } from '../app/modules/exclusiveOffer/category/category.route';
 import { EventRoutes } from '../app/modules/event/event.route';
 import { SettingsRoutes } from '../app/modules/settings/settings.route';
+import { FaqRoutes } from '../app/modules/faq/faq.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -66,6 +67,10 @@ const apiRoutes = [
   {
     path: '/settings',
     route: SettingsRoutes,
+  },
+  {
+    path: '/faq',
+    route: FaqRoutes,
   },
 ];
 

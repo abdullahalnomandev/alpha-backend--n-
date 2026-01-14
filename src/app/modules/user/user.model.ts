@@ -98,6 +98,7 @@ userSchema.pre('save', async function (next) {
   //check user
   const isExist = await User.findOne({ email: this.email });
   if (isExist) {
+    console.log(isExist)
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
   }
 

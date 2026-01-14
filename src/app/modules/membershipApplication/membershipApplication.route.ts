@@ -10,12 +10,12 @@ const router = express.Router();
 router
   .route('/')
   .post(
-    // auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     validateRequest(MemberShipApplicationValidation.createZodSchema),
     MemberShipApplicationController.create
   )
   .get(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     MemberShipApplicationController.getAll
   );
 
@@ -26,7 +26,7 @@ router
     MemberShipApplicationController.getById
   )
   .patch(
-    // auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     MemberShipApplicationController.update
   )
   .delete(

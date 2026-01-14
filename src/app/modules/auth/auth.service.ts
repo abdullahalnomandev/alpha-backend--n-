@@ -14,6 +14,7 @@ import {
 import { User } from '../user/user.model';
 import generateOTP from '../../../util/generateOTP';
 import { IUser } from '../user/user.interface';
+import { USER_ROLES } from '../../../enums/user';
 
 
 //resend otp
@@ -256,6 +257,44 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
   return { createToken };
 };
+const adminloginUserFromDB = async (payload: ILoginData) => {
+  const { email, password } = payload;
+  const isExistUser = await User.findOne({ email }).select('+password');
+
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  if (isExistUser.role !== USER_ROLES.ADMIN && isExistUser.role !== USER_ROLES.SUPER_ADMIN) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'You don’t have permission to access dashboard.');
+  }
+
+
+  //check user status
+  if (isExistUser.status === 'block') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You don’t have permission to access this content.It looks like your account has been blocked.'
+    );
+  }
+
+  //check match password
+  if (
+    password &&
+    !(await User.isMatchPassword(password, isExistUser.password))
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
+  }
+
+  //create token
+  const createToken = jwtHelper.createToken(
+    { id: isExistUser._id, role: isExistUser.role },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string
+  );
+
+  return { createToken };
+};
 
 //forget password
 const forgetPasswordToDB = async (email: string) => {
@@ -383,6 +422,7 @@ const changePasswordToDB = async (
 
 
 export const AuthService = {
+  adminloginUserFromDB,
   forgetPasswordToDB,
   loginUserFromDB,
   resetPasswordToDB,
