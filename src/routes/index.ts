@@ -13,6 +13,8 @@ import { CategoryRoutes } from '../app/modules/exclusiveOffer/category/category.
 import { EventRoutes } from '../app/modules/event/event.route';
 import { SettingsRoutes } from '../app/modules/settings/settings.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
+import { ContactFormRoutes } from '../app/modules/contactForm/contactForm.route';
+import { NotificationRoutes } from '../app/modules/notification/notification.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -71,6 +73,14 @@ const apiRoutes = [
   {
     path: '/faq',
     route: FaqRoutes,
+  },
+  {
+    path: '/contact-form',
+    route: ContactFormRoutes,
+  },
+  {
+    path: '/notification',
+    route: NotificationRoutes,
   },
 ];
 

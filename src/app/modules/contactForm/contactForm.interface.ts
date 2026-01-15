@@ -5,7 +5,8 @@ export type IContactForm = {
   name: string;
   contact: string;
   email: string;
-  message: string;
+  message?: string;
+  membershipType?:string;
   createdAt?: Date;
   updatedAt?: Date;
 };

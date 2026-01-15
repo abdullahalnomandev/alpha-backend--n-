@@ -280,9 +280,65 @@ const membershipRejected = (values: { email: string; name: string }) => {
   return data;
 };
 
+
+interface IApplicationFormAdminValues {
+  userName: string;
+  userEmail: string;
+  userContact: string;
+  userMessage: string;
+  adminEmail: string;  // admin email, for admin notification
+}
+
+
+// Function for sending user's message/info to the admin, includes a button to see all application requests
+const applicationFormAdmin = (values: IApplicationFormAdminValues) => {
+  const data = {
+    to: values.adminEmail,
+    subject: 'New Membership Application Request',
+    html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Membership Application Request</title>
+      </head>
+      <body style="font-family: 'Inter', Arial, sans-serif; background: #f6f8fb; margin: 0; padding: 0;">
+        <div style="max-width: 490px; margin: 40px auto; background: #ffffff; border-radius: 18px; padding: 38px 28px 34px 28px; box-shadow: 0 8px 26px rgba(20,34,58,0.09);">
+          <h1 style="color: #295ec9; font-size: 22px; font-weight: bold; margin: 0 0 18px 0;">
+            New Membership Application Submitted
+          </h1>
+          <p style="font-size:15px; color:#374151; margin-bottom:10px;">
+            <strong>Name:</strong> ${values.userName}<br>
+            <strong>Email:</strong> ${values.userEmail}<br>
+            <strong>Contact:</strong> ${values.userContact}
+          </p>
+          <div style="margin:18px 0;">
+            <p style="margin:0; font-size:14px; color:#111827;">
+              <strong>User Message:</strong>
+            </p>
+            <div style="font-size:14px; color:#374151; background:#f9fafb; border-radius:8px; padding:12px; border:1px solid #e5e7eb; margin-top:5px;">
+              ${values.userMessage ? values.userMessage : '<em>No message provided.</em>'}
+            </div>
+          </div>
+          <div style="text-align:center; margin:28px 0 0 0;">
+            <a href="${`${config.dashboard_url}/user/contact-from`}" style="display:inline-block; background:#295ec9; color:#fff; font-size:16px; font-weight:600; padding:12px 26px; border-radius:7px; text-decoration:none; letter-spacing:0.5px;">
+              See All Application
+            </a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+  return data;
+};
+
+
 export const emailTemplate = {
   resetPassWord,
   verifyAccount,
   membershipApproved,
   membershipRejected,
+  applicationFormAdmin,
 };

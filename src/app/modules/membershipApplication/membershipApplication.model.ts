@@ -54,7 +54,6 @@ const memberShipApplicationSchema = new Schema<IMemberShipApplication, MemberShi
     },
     address: {
       type: String,
-      required: true,
       trim: true,
     },
     familyMembers: [familyMemberSchema],

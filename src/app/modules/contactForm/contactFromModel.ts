@@ -21,7 +21,6 @@ const faqContactSchema = new Schema<IContactForm, ContactFormModel>(
         },
         message: {
             type: String,
-            required: true,
             trim: true,
         },
     },

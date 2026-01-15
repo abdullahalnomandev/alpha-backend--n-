@@ -12,55 +12,84 @@ import generateRandomPassword from '../../../util/generateRandomPassword';
 import { USER_ROLES } from '../../../enums/user';
 import { MemberShipPlan } from '../membershipPlan/membershipPlan.model';
 
+
 // const createToDB = async (payload: IMemberShipApplication) => {
-//   const isExist = await MemberShipPlan.findOne({
+//   // Check membership plan
+//   const plan = await MemberShipPlan.findOne({
 //     membershipType: payload.membershipType,
 //   });
 
-//   if (!isExist) {
+//   if (!plan) {
 //     throw new ApiError(
 //       StatusCodes.BAD_REQUEST,
 //       `Membership type "${payload.membershipType}" not found`
 //     );
 //   }
 
-//   if (
-//     isExist?.familyMembershipOptions?.enableFamilyMembers &&
-//     (payload.familyMembers?.length ?? 0) >
-//       (isExist.familyMembershipOptions.familyMembershipLimit ?? 0)
-//   ) {
+//   if(!plan.familyMembershipOptions?.enableFamilyMembers && payload.familyMembers && payload.familyMembers?.length > 0) {
+    
 //     throw new ApiError(
 //       StatusCodes.BAD_REQUEST,
-//       `Family member limit (${isExist.familyMembershipOptions.familyMembershipLimit}) exceeded.`
+//       `Family membership is not enabled for this plan.`
 //     );
 //   }
 
-//   const duplicate = await MemberShipApplication.findOne({
+//   // Handle family members ONLY if family is enabled
+//   if (plan.familyMembershipOptions?.enableFamilyMembers) {
+//     const limit = plan.familyMembershipOptions.familyMembershipLimit ?? 0;
+//     const count = payload.familyMembers?.length ?? 0;
+
+//     if (count > limit) {
+//       throw new ApiError(
+//         StatusCodes.BAD_REQUEST,
+//         `Family member limit exceeded`
+//       );
+//     }
+//   } else {
+//     // If not family membership, ignore familyMembers
+//     payload.familyMembers = [];
+//   }
+
+//   // Duplicate check by phone number
+//   const phoneExists = await MemberShipApplication.findOne({
+//     phone: payload.phone,
+//     membershipStatus: {
+//       $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+//     },
+//   });
+
+//   if (phoneExists) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       `You already applied with this phone number`
+//     );
+//   }
+
+//   // Duplicate check by email
+//   const emailExists = await MemberShipApplication.findOne({
 //     email: payload.email,
 //     membershipStatus: {
 //       $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
 //     },
 //   });
 
-//   if (duplicate) {
+//   if (emailExists) {
 //     throw new ApiError(
 //       StatusCodes.BAD_REQUEST,
-//       `A ${duplicate.membershipStatus.toLowerCase()} membership application already exists for the email: ${
-//         payload.email
-//       }.`
+//       `You already applied with this email`
 //     );
 //   }
 
+//   // Set default status
 //   payload.membershipStatus = MembershipStatus.PENDING;
 
-//   // Set expireId to 4 years from now (created date)
-//   const now = new Date();
-//   const expireDate = new Date(now.setFullYear(now.getFullYear() + 4));
+//   // Expiry date → 4 years
+//   const expireDate = new Date();
+//   expireDate.setFullYear(expireDate.getFullYear() + 4);
 //   payload.expireId = expireDate;
 
 //   return await MemberShipApplication.create(payload);
 // };
-
 const createToDB = async (payload: IMemberShipApplication) => {
   // Check membership plan
   const plan = await MemberShipPlan.findOne({
@@ -99,34 +128,34 @@ const createToDB = async (payload: IMemberShipApplication) => {
   }
 
   // Duplicate check by phone number
-  const phoneExists = await MemberShipApplication.findOne({
-    phone: payload.phone,
-    membershipStatus: {
-      $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
-    },
-  });
+  // const phoneExists = await MemberShipApplication.findOne({
+  //   phone: payload.phone,
+  //   membershipStatus: {
+  //     $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+  //   },
+  // });
 
-  if (phoneExists) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      `You already applied with this phone number`
-    );
-  }
+  // if (phoneExists) {
+  //   throw new ApiError(
+  //     StatusCodes.BAD_REQUEST,
+  //     `You already applied with this phone number`
+  //   );
+  // }
 
   // Duplicate check by email
-  const emailExists = await MemberShipApplication.findOne({
-    email: payload.email,
-    membershipStatus: {
-      $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
-    },
-  });
+  // const emailExists = await MemberShipApplication.findOne({
+  //   email: payload.email,
+  //   membershipStatus: {
+  //     $in: [MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+  //   },
+  // });
 
-  if (emailExists) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      `You already applied with this email`
-    );
-  }
+  // if (emailExists) {
+  //   throw new ApiError(
+  //     StatusCodes.BAD_REQUEST,
+  //     `You already applied with this email`
+  //   );
+  // }
 
   // Set default status
   payload.membershipStatus = MembershipStatus.PENDING;
@@ -138,7 +167,6 @@ const createToDB = async (payload: IMemberShipApplication) => {
 
   return await MemberShipApplication.create(payload);
 };
-
 
 const getAllFromDB = async (query: Record<string, any>) => {
   const qb = new QueryBuilder(MemberShipApplication.find(), query)
