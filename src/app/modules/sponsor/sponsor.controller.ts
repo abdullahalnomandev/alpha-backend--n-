@@ -7,7 +7,7 @@ import { getSingleFilePath } from '../../../shared/getFilePath';
 
 const create = catchAsync(async (req: Request, res: Response) => {
   const image = getSingleFilePath(req.files, 'image');
-  const logo = getSingleFilePath(req.files, 'image');
+  const logo = getSingleFilePath(req.files, 'logo');
   const data = {
     ...req.body,
     ...(logo && { logo }),
