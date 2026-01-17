@@ -196,11 +196,82 @@ const getByIdFromDB = async (id: mongoose.Types.ObjectId) => {
   return application;
 };
 
+// const updateInDB = async (
+//   id: mongoose.Types.ObjectId,
+//   payload: Partial<IMemberShipApplication>
+// ) => {
+//   const application = await MemberShipApplication.findById(id).lean();
+//   if (!application) {
+//     throw new ApiError(
+//       StatusCodes.NOT_FOUND,
+//       'Membership application not found'
+//     );
+//   }
+
+//   const previousStatus = application.membershipStatus;
+//   const newStatus = payload.membershipStatus;
+
+//   if (newStatus === MembershipStatus.ACTIVE && previousStatus !== MembershipStatus.ACTIVE) {
+//     const existingUser = await User.findOne({ email: application.email });
+
+//     if (!existingUser) {
+//       const randomPassword = generateRandomPassword(12);
+
+//       await User.create({
+//         name: application.name,
+//         email: application.email,
+//         phone: application.phone,
+//         password: randomPassword,
+//         verified: true,
+//         application_form:application._id
+//       });
+
+//       const emailData = emailTemplate.membershipApproved({
+//         email: application.email,
+//         name: application.name,
+//         password: randomPassword,
+//         memberShipId: application.memberShipId || '',
+//         phone: application.phone
+//       });
+//       emailHelper.sendEmail(emailData);
+//     }
+//   }
+
+//   // If status is being changed to REJECTED
+//   if (
+//     newStatus === MembershipStatus.REJECTED &&
+//     previousStatus !== MembershipStatus.REJECTED
+//   ) {
+//     // Send rejection email
+//     const emailData = emailTemplate.membershipRejected({
+//       email: application.email,
+//       name: application.name,
+//     });
+//     emailHelper.sendEmail(emailData);
+//   }
+
+//   // Update the application
+//   const updated = await MemberShipApplication.findByIdAndUpdate(id, payload, {
+//     new: true,
+//     runValidators: true,
+//   }).lean();
+
+//   if (!updated) {
+//     throw new ApiError(
+//       StatusCodes.NOT_FOUND,
+//       'Membership application not found'
+//     );
+//   }
+
+//   return updated;
+// };
+
 const updateInDB = async (
   id: mongoose.Types.ObjectId,
   payload: Partial<IMemberShipApplication>
 ) => {
   const application = await MemberShipApplication.findById(id).lean();
+
   if (!application) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
@@ -211,10 +282,20 @@ const updateInDB = async (
   const previousStatus = application.membershipStatus;
   const newStatus = payload.membershipStatus;
 
-  if (newStatus === MembershipStatus.ACTIVE && previousStatus !== MembershipStatus.ACTIVE) {
-    const existingUser = await User.findOne({ email: application.email });
+  // ✅ If status is being changed to ACTIVE
+  if ( newStatus === MembershipStatus.ACTIVE && previousStatus !== MembershipStatus.ACTIVE) {
+    const existingUser = await User.findOne({
+      email: application.email,
+      phone: application.phone,
+    });
 
-    if (!existingUser) {
+    if (existingUser) {
+      // 🟢 User exists → just update application reference
+      await User.findByIdAndUpdate(existingUser._id, {
+        application_form: application._id,
+      });
+    } else {
+      // 🔵 User does not exist → create new user
       const randomPassword = generateRandomPassword(12);
 
       await User.create({
@@ -223,34 +304,36 @@ const updateInDB = async (
         phone: application.phone,
         password: randomPassword,
         verified: true,
-        application_form:application._id
+        application_form: application._id,
       });
 
+      // 📧 Send approval email only for new users
       const emailData = emailTemplate.membershipApproved({
         email: application.email,
         name: application.name,
         password: randomPassword,
         memberShipId: application.memberShipId || '',
-        phone: application.phone
+        phone: application.phone,
       });
-      emailHelper.sendEmail(emailData);
+
+      await emailHelper.sendEmail(emailData);
     }
   }
 
-  // If status is being changed to REJECTED
+  // ❌ If status is being changed to REJECTED
   if (
     newStatus === MembershipStatus.REJECTED &&
     previousStatus !== MembershipStatus.REJECTED
   ) {
-    // Send rejection email
     const emailData = emailTemplate.membershipRejected({
       email: application.email,
       name: application.name,
     });
-    emailHelper.sendEmail(emailData);
+
+    await emailHelper.sendEmail(emailData);
   }
 
-  // Update the application
+  // 🔄 Update the application
   const updated = await MemberShipApplication.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,

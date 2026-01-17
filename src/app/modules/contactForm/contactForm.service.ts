@@ -11,13 +11,120 @@ import { USER_ROLES } from '../../../enums/user';
 import { Notification } from '../notification/notification.mode';
 import { NotificationCount } from '../notification/notificationCountModel';
 
+// const createToDB = async (payload: IContactForm) => {
+//   // Save Contact Form as usual
+//   await ContactForm.create(payload);
+
+//   if (payload.membershipType) {
+//     const expireDate = new Date();
+//     expireDate.setFullYear(expireDate.getFullYear() + 4);
+//     await MemberShipApplication.create({
+//       name: payload.name,
+//       phone: payload.contact,
+//       email: payload.email,
+//       membershipType: payload.membershipType,
+//       expireId: expireDate,
+//     });
+//   }
+
+//   const adminOrSuperAdminUsers = await User.find({
+//     role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] }
+//   });
+
+//   for (const admin of adminOrSuperAdminUsers) {
+//     if (admin.email) {
+//       const emailPayload = {
+//         userName: payload.name,
+//         userEmail: payload.email,
+//         userContact: payload.contact,
+//         userMessage: payload.message ?? "",
+//         adminEmail: admin.email,
+//       };
+//       const sendEmail = emailTemplate.applicationFormAdmin(emailPayload);
+//       emailHelper.sendEmail(sendEmail);
+//     }
+//     // Fire and forget - no await, immediate side effect
+//     Notification.create({
+//       receiver: admin._id,
+//       title: "New Membership Application Submitted",
+//       message: payload.message ?? "",
+//       sender: null,
+//       refId: admin._id,
+//       path: "/user/contact-from",
+//       seen: false
+//     }).then(() => {}).catch(() => {});
+
+//     // increment count if exists, otherwise create with count 1 using upsert
+//     NotificationCount.findOneAndUpdate(
+//       { user: admin._id },
+//       { $inc: { count: 1 } },
+//       { new: true, upsert: true }
+//     ).then(() => {}).catch(() => {});
+//   }
+
+ 
+// };
+
 const createToDB = async (payload: IContactForm) => {
-  // Save Contact Form as usual
+  // 🔴 Check email duplicate in ContactForm
+  const emailExists = await ContactForm.findOne({
+    email: payload.email,
+  });
+
+  if (emailExists) {
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      "Application already exists with this email"
+    );
+  }
+
+  // 🔴 Check phone duplicate in ContactForm
+  const phoneExists = await ContactForm.findOne({
+    contact: payload.contact,
+  });
+
+  if (phoneExists) {
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      "Application already exists with this phone number"
+    );
+  }
+
+  // 🔴 Check email duplicate in Membership Application
+  if (payload.membershipType) {
+    const emailExistsInApplication =
+      await MemberShipApplication.findOne({
+        email: payload.email,
+      });
+
+    if (emailExistsInApplication) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        "Membership application already exists with this email"
+      );
+    }
+
+    const phoneExistsInApplication =
+      await MemberShipApplication.findOne({
+        phone: payload.contact,
+      });
+
+    if (phoneExistsInApplication) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        "Membership application already exists with this phone number"
+      );
+    }
+  }
+
+  // ✅ Save Contact Form
   await ContactForm.create(payload);
 
+  // ✅ Save Membership Application
   if (payload.membershipType) {
     const expireDate = new Date();
     expireDate.setFullYear(expireDate.getFullYear() + 4);
+
     await MemberShipApplication.create({
       name: payload.name,
       phone: payload.contact,
@@ -27,11 +134,13 @@ const createToDB = async (payload: IContactForm) => {
     });
   }
 
+  // 🔔 Notify Admins
   const adminOrSuperAdminUsers = await User.find({
-    role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] }
+    role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] },
   });
 
   for (const admin of adminOrSuperAdminUsers) {
+    // 📧 Email
     if (admin.email) {
       const emailPayload = {
         userName: payload.name,
@@ -40,10 +149,13 @@ const createToDB = async (payload: IContactForm) => {
         userMessage: payload.message ?? "",
         adminEmail: admin.email,
       };
-      const sendEmail = emailTemplate.applicationFormAdmin(emailPayload);
+
+      const sendEmail =
+        emailTemplate.applicationFormAdmin(emailPayload);
       emailHelper.sendEmail(sendEmail);
     }
-    // Fire and forget - no await, immediate side effect
+
+    // 🔔 Notification
     Notification.create({
       receiver: admin._id,
       title: "New Membership Application Submitted",
@@ -51,18 +163,16 @@ const createToDB = async (payload: IContactForm) => {
       sender: null,
       refId: admin._id,
       path: "/user/contact-from",
-      seen: false
-    }).then(() => {}).catch(() => {});
+      seen: false,
+    }).catch(() => {});
 
-    // increment count if exists, otherwise create with count 1 using upsert
+    // 🔢 Notification count
     NotificationCount.findOneAndUpdate(
       { user: admin._id },
       { $inc: { count: 1 } },
       { new: true, upsert: true }
-    ).then(() => {}).catch(() => {});
+    ).catch(() => {});
   }
-
- 
 };
 
 
