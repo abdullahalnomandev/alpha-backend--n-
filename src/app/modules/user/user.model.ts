@@ -46,11 +46,16 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Boolean,
       default: false,
     },
+    hasPasswordSave: {
+      type: Boolean,
+      default: false,
+    },
     application_form: {
       type: Schema.Types.ObjectId,
       ref: 'MemberShipApplication',
       select: false,
     },
+    
     authentication: {
       type: {
         isResetPassword: {

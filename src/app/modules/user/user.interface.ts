@@ -13,6 +13,7 @@ export type IUser = {
   role?: USER_ROLES;
   verified?: boolean;
   application_form:mongoose.ObjectId;
+  hasPasswordSave:Boolean;
   authentication?: {
     isResetPassword?: boolean;
     oneTimeCode?: number | null;

@@ -415,6 +415,7 @@ const changePasswordToDB = async (
 
   const updateData = {
     password: hashPassword,
+    hasPasswordSave: true,
   };
   await User.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
 };
