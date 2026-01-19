@@ -99,13 +99,12 @@ userSchema.statics.isMatchPassword = async (
 //check user
 userSchema.pre('save', async function (next) {
 
-  console.log('CALLED')
   //check user
-  const isExist = await User.findOne({ email: this.email });
-  if (isExist) {
-    console.log(isExist)
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
-  }
+  // const isExist = await User.findOne({ email: this.email });
+  // if (isExist) {
+  //   console.log(isExist)
+  //   throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
+  // }
 
   if (!this.password) {
     return;

@@ -12,7 +12,6 @@ import generateRandomPassword from '../../../util/generateRandomPassword';
 import { USER_ROLES } from '../../../enums/user';
 import { MemberShipPlan } from '../membershipPlan/membershipPlan.model';
 
-
 // const createToDB = async (payload: IMemberShipApplication) => {
 //   // Check membership plan
 //   const plan = await MemberShipPlan.findOne({
@@ -27,7 +26,7 @@ import { MemberShipPlan } from '../membershipPlan/membershipPlan.model';
 //   }
 
 //   if(!plan.familyMembershipOptions?.enableFamilyMembers && payload.familyMembers && payload.familyMembers?.length > 0) {
-    
+
 //     throw new ApiError(
 //       StatusCodes.BAD_REQUEST,
 //       `Family membership is not enabled for this plan.`
@@ -103,8 +102,11 @@ const createToDB = async (payload: IMemberShipApplication) => {
     );
   }
 
-  if(!plan.familyMembershipOptions?.enableFamilyMembers && payload.familyMembers && payload.familyMembers?.length > 0) {
-    
+  if (
+    !plan.familyMembershipOptions?.enableFamilyMembers &&
+    payload.familyMembers &&
+    payload.familyMembers?.length > 0
+  ) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       `Family membership is not enabled for this plan.`
@@ -279,44 +281,59 @@ const updateInDB = async (
     );
   }
 
+  console.log('application', application);
+
   const previousStatus = application.membershipStatus;
   const newStatus = payload.membershipStatus;
 
   // ✅ If status is being changed to ACTIVE
-  if ( newStatus === MembershipStatus.ACTIVE && previousStatus !== MembershipStatus.ACTIVE) {
+  if (
+    newStatus === MembershipStatus.ACTIVE &&
+    previousStatus !== MembershipStatus.ACTIVE
+  ) {
     const existingUser = await User.findOne({
-      email: application.email,
-      phone: application.phone,
+      $or: [{ email: application.email }, { phone: application.phone }],
     });
 
+    console.log({ application });
+
     if (existingUser) {
-      // 🟢 User exists → just update application reference
       await User.findByIdAndUpdate(existingUser._id, {
         application_form: application._id,
       });
     } else {
-      // 🔵 User does not exist → create new user
-      const randomPassword = generateRandomPassword(12);
-
-      await User.create({
-        name: application.name,
-        email: application.email,
-        phone: application.phone,
-        password: randomPassword,
-        verified: true,
-        application_form: application._id,
+      const existingUser = await User.findOne({
+        $or: [{ email: application.email }, { phone: application.phone }],
       });
 
-      // 📧 Send approval email only for new users
-      const emailData = emailTemplate.membershipApproved({
-        email: application.email,
-        name: application.name,
-        password: randomPassword,
-        memberShipId: application.memberShipId || '',
-        phone: application.phone,
-      });
+      if (existingUser) {
+        await User.findByIdAndUpdate(existingUser._id, {
+          application_form: application._id,
+        });
+      } else {
+        // 🔵 User does not exist → create new user
+        const randomPassword = generateRandomPassword(12);
 
-      await emailHelper.sendEmail(emailData);
+        await User.create({
+          name: application.name,
+          email: application.email,
+          phone: application.phone,
+          password: randomPassword,
+          verified: true,
+          application_form: application._id,
+        });
+
+        // 📧 Send approval email only for new users
+        const emailData = emailTemplate.membershipApproved({
+          email: application.email,
+          name: application.name,
+          password: randomPassword,
+          memberShipId: application.memberShipId || '',
+          phone: application.phone,
+        });
+
+        await emailHelper.sendEmail(emailData);
+      }
     }
   }
 
