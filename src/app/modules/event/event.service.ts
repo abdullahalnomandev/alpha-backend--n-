@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { IEvent } from './event.interface';
 import { Event } from './event.model';
+import { EventRegistration } from './eventRegistration/eventRegistration.model';
 
 const createToDB = async (payload: IEvent) => {
   return await Event.create(payload);
@@ -34,11 +35,30 @@ const getAllFromDB = async (query: Record<string, any>) => {
 
 const getByIdFromDB = async (id: string) => {
   const event = await Event.findById(id).lean();
-  
+
   if (!event) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Event not found');
   }
-  return event;
+
+  // Check if a registration exists for this event; if not, joinStatus is 'none'
+  const existingRegistration = await EventRegistration.findOne({ event: id }).lean();
+
+  // Calculate enableToJoin: true if eventDate is today or in the future
+  let enableToJoin = false;
+  if (event.eventDate) {
+    const eventDate = new Date(event.eventDate);
+    const now = new Date();
+    // Remove time from both dates for "today" check
+    const eventYMD = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    const nowYMD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    enableToJoin = eventYMD >= nowYMD;
+  }
+
+  return {
+    ...event,
+    joinStatus: existingRegistration ? existingRegistration.status || 'none' : 'none',
+    enableToJoin,
+  };
 };
 
 const updateInDB = async (id: string, payload: Partial<IEvent>) => {

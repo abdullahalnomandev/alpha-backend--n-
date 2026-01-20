@@ -29,7 +29,7 @@ router
   )
   .patch(
     fileUploadHandler(),
-    validateRequest(ExclusiveOfferValidation.updateZodSchema),
+    // validateRequest(ExclusiveOfferValidation.updateZodSchema),
     auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER),
     ExclusiveOfferController.update
   )

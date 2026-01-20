@@ -23,7 +23,7 @@ const create = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAll = catchAsync(async (req: Request, res: Response) => {
-  const result = await StoryService.getAllFromDB(req.query);
+  const result = await StoryService.getAllFromDB(req.query,req.user?.role);
 
   sendResponse(res, {
     success: true,

@@ -3,10 +3,10 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { ExclusiveOfferService } from './exclusiveOffer.service';
-import { getSingleFilePath } from '../../../shared/getFilePath';
+import { getMultipleFilesPath, getSingleFilePath } from '../../../shared/getFilePath';
 
 const create = catchAsync(async (req: Request, res: Response) => {
-  const image = getSingleFilePath(req.files, 'image');
+  const image = getMultipleFilesPath(req.files, 'image');
   const data = {
     ...req.body,
     ...(image && { image }),
@@ -23,7 +23,7 @@ const create = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAll = catchAsync(async (req: Request, res: Response) => {
-  const result = await ExclusiveOfferService.getAllFromDB(req.query,req?.user?.id as string);
+  const result = await ExclusiveOfferService.getAllFromDB(req.query,req?.user?.id as string, req?.user?.role);
   
   sendResponse(res, {
     success: true,
@@ -48,12 +48,14 @@ const getById = catchAsync(async (req: Request, res: Response) => {
 
 const update = catchAsync(async (req: Request, res: Response) => {
   const id = req?.params?.id;
-  const image = getSingleFilePath(req.files, 'image');
+  const image = getMultipleFilesPath(req.files, 'image');
   
   const data = {
     ...req.body,
     ...(image && { image }),
   };
+
+  console.log('why',data)
   
   const result = await ExclusiveOfferService.updateInDB(id, data);
   

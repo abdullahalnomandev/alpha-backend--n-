@@ -3,14 +3,22 @@ import { StatusCodes } from 'http-status-codes';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { ISponsor } from './sponsor.interface';
 import { Sponsor } from './sponsor.model';
+import { USER_ROLES } from '../../../enums/user';
 
 const createToDB = async (payload: ISponsor) => {
   return await Sponsor.create(payload);
 };
 
-const getAllFromDB = async (query: Record<string, any>) => {
+const getAllFromDB = async (query: Record<string, any>, role: string) => {
+  // If the role is 'user', only show sponsors where publishing is true
+  const filter: Record<string, any> = {};
+
+  if (role === USER_ROLES.USER) {
+    filter.publishing = true;
+  }
+
   const qb = new QueryBuilder(
-    Sponsor.find().select('logo title location'),
+    Sponsor.find(filter).select('logo title location publishing'),
     query
   )
     .paginate()
@@ -18,10 +26,10 @@ const getAllFromDB = async (query: Record<string, any>) => {
     .fields()
     .filter()
     .sort();
-  
+
   const data = await qb.modelQuery.lean();
   const pagination = await qb.getPaginationInfo();
-  
+
   return {
     pagination,
     data,
@@ -30,7 +38,7 @@ const getAllFromDB = async (query: Record<string, any>) => {
 
 const getByIdFromDB = async (id: string) => {
   const sponsor = await Sponsor.findById(id).lean();
-  
+
   if (!sponsor) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Sponsor not found');
   }
@@ -38,14 +46,23 @@ const getByIdFromDB = async (id: string) => {
 };
 
 const updateInDB = async (id: string, payload: Partial<ISponsor>) => {
-  const updated = await Sponsor.findByIdAndUpdate(
-    id,
-    payload,
-    {
-      new: true,
-      runValidators: true,
+  // Convert publishing to boolean if it's string 'true' or 'false'
+  if (
+    Object.prototype.hasOwnProperty.call(payload, 'publishing') &&
+    typeof payload.publishing === 'string'
+  ) {
+    const publishingStr = payload.publishing as unknown as string;
+    if (publishingStr.toLowerCase() === 'true') {
+      payload.publishing = true;
+    } else if (publishingStr.toLowerCase() === 'false') {
+      payload.publishing = false;
     }
-  ).lean();
+  }
+
+   console.log(payload)
+  const updated = await Sponsor.findByIdAndUpdate(id, payload, {
+    new: true,
+  }).lean();
 
   if (!updated) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Sponsor not found');
@@ -69,4 +86,3 @@ export const SponsorService = {
   updateInDB,
   deleteFromDB,
 };
-

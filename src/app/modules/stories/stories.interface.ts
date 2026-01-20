@@ -6,10 +6,10 @@ export type IStory = {
   description?: string;             // Story description
   image?: string;                   // Story image
   club?: Types.ObjectId;            // Reference to Club
+  published?: boolean;              // Published status
   createdAt?: Date;
   updatedAt?: Date;
 };
 
 export type StoryModel = Model<IStory>;
-
 

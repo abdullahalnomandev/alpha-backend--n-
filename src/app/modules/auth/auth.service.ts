@@ -120,9 +120,11 @@ const verifyResetOtp = async (payload: { email: string, oneTimeCode: number }) =
   if (!registedUser?.authentication?.oneTimeCode) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP not found or not requested');
   }
+  
+  console.log(payload)
 
   // Check OTP match
-  if (registedUser.authentication.oneTimeCode !== oneTimeCode) {
+  if (registedUser.authentication.oneTimeCode !== Number(oneTimeCode)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid OTP');
   }
 
@@ -133,28 +135,28 @@ const verifyResetOtp = async (payload: { email: string, oneTimeCode: number }) =
   }
 
   // Mark user as verified and clear OTP
-  await User.findByIdAndUpdate(
-    registedUser._id,
-    {
-      $set: {
-        verified: true,
-        'authentication.oneTimeCode': null,
-        'authentication.expireAt': null,
-        'authentication.isResetPassword': true
-      },
-    },
-    { new: true }
-  );
+  // await User.findByIdAndUpdate(
+  //   registedUser._id,
+  //   {
+  //     $set: {
+  //       verified: true,
+  //       'authentication.oneTimeCode': null,
+  //       'authentication.expireAt': null,
+  //       'authentication.isResetPassword': true
+  //     },
+  //   },
+  //   { new: true }
+  // );
 
-  //create token
-  const createToken = jwtHelper.createToken(
-    { id: registedUser._id, role: registedUser.role },
-    config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_expire_in as string
-  );
+  // //create token
+  // const createToken = jwtHelper.createToken(
+  //   { id: registedUser._id, role: registedUser.role },
+  //   config.jwt.jwt_secret as Secret,
+  //   config.jwt.jwt_expire_in as string
+  // );
 
 
-  return { message: 'OTP verified successfully',token:createToken };
+  return { message: 'OTP verified successfully' };
 };
 
 
@@ -255,7 +257,9 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_expire_in as string
   );
 
-  return { createToken };
+  // Exclude password before returning user object
+  const { password: _password, ...userWithoutPassword } = isExistUser.toObject ? isExistUser.toObject() : isExistUser;
+  return { token:createToken, user: userWithoutPassword };
 };
 const adminloginUserFromDB = async (payload: ILoginData) => {
   const { email, password } = payload;

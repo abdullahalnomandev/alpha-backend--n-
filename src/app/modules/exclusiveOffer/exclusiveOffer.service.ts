@@ -6,6 +6,7 @@ import { ExclusiveOffer } from './exclusiveOffer.model';
 import { getLatLongWithLocalRequest } from './exclusiveOffer.util';
 import { FavouriteExclusiveOffer } from './favourite/favouriteExclusiveOffer.model';
 import mongoose from 'mongoose';
+import { USER_ROLES } from '../../../enums/user';
 
 const createToDB = async (payload: IExclusiveOffer) => {
   const { latitude, longitude } = await getLatLongWithLocalRequest(
@@ -270,11 +271,16 @@ const createToDB = async (payload: IExclusiveOffer) => {
 //   return { pagination, data };
 // };
 
-const getAllFromDB = async (query: Record<string, any>, userId: string) => {
+const getAllFromDB = async (query: Record<string, any>, userId: string, role: string) => {
   const { lat, lng, maxKm, minKm, category } = query;
 
   let data: any[] = [];
   let pagination: any = {};
+
+  // If the user's role is 'USER', only fetch published offers
+  if (role && role === USER_ROLES.USER) {
+    query.published = true;
+  }
 
   if (lat && lng) {
     const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -288,6 +294,7 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
       spherical: true,
       ...(maxKm ? { maxDistance: Number(maxKm) * 1000 } : {}),
       ...(minKm ? { minDistance: Number(minKm) * 1000 } : {}),
+      ...(query.published !== undefined ? { query: { published: query.published } } : {}),
     };
 
     const aggregationStages: any[] = [{ $geoNear: geoNearQuery }];
@@ -357,6 +364,7 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
         location: 1,
         isFavourite: 1,
         description: 1,
+        published:1,
         category: {
           _id: 1,
           name: 1,
@@ -387,7 +395,7 @@ const getAllFromDB = async (query: Record<string, any>, userId: string) => {
     };
   } else {
     let modelQuery = ExclusiveOffer.find().select(
-      'name title image discount description location address'
+      'name title image discount description location address published'
     ) as any;
 
     const qb = new QueryBuilder(modelQuery, { ...query })
@@ -432,7 +440,48 @@ const getByIdFromDB = async (id: string) => {
   return exclusiveOffer;
 };
 
-const updateInDB = async (id: string, payload: Partial<IExclusiveOffer>) => {
+const updateInDB = async (id: string, payload: Partial<IExclusiveOffer> & { removedFiles?: string[] }) => {
+  // Always get current document images for update logic
+  const existing = await ExclusiveOffer.findById(id).select('image').lean();
+  let existingImages: string[] = Array.isArray(existing?.image) ? existing.image.map(String) : [];
+
+  // Handle removing files if removedFiles present in payload
+  if (Array.isArray(payload.removedFiles) && payload.removedFiles.length > 0) {
+    // Remove any image matching removedFiles from existingImages
+    const removedFilesSet = new Set(payload.removedFiles.map(String));
+    existingImages = existingImages.filter(img => !removedFilesSet.has(img));
+  }
+
+  // Special logic for image updating: append new images if present
+  if (payload.hasOwnProperty('image')) {
+    let newImages: string[];
+    if (Array.isArray(payload.image)) {
+      newImages = payload.image.map(img => String(img)).filter(Boolean);
+    } else if (payload.image === null || payload.image === undefined) {
+      newImages = [];
+    } else {
+      newImages = [String(payload.image)];
+    }
+
+    if (newImages.length > 0) {
+      // Combine existing (possibly filtered if removedFiles used) and new, then dedupe
+      const combinedImages = Array.from(
+        new Set([...existingImages, ...newImages])
+      );
+      payload.image = combinedImages;
+    } else {
+      // If nothing new, just keep current (possibly filtered by removedFiles)
+      payload.image = existingImages;
+    }
+  } else if (Array.isArray(payload.removedFiles) && payload.removedFiles.length > 0) {
+    // If only removedFiles was given (not a new image array), update with filtered results
+    payload.image = existingImages;
+  }
+  // Else: image property untouched, no update
+
+  // Remove removedFiles from payload to avoid mongoose error (not in schema)
+  delete (payload as any).removedFiles;
+
   const updated = await ExclusiveOffer.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,

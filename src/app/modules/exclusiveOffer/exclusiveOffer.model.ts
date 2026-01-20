@@ -32,10 +32,12 @@ const exclusiveOfferSchema = new Schema<IExclusiveOffer, ExclusiveOfferModel>(
             required: true
         }
     },
-    image: {
-      type: String,
-      trim: true,
-    },
+    image: [
+      {
+        type: String,
+        trim: true,
+      }
+    ],
     description: {
       type: String,
       trim: true,
@@ -47,6 +49,10 @@ const exclusiveOfferSchema = new Schema<IExclusiveOffer, ExclusiveOfferModel>(
     category: {
       type: Schema.Types.ObjectId,
       ref: 'Category',
+    },
+    published: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

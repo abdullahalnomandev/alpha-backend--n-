@@ -5,13 +5,22 @@ import { IStory } from './stories.interface';
 import { Story } from './stories.model';
 import { StoryLike } from './storiesLike/storiesLike.model';
 import mongoose from 'mongoose';
+import { USER_ROLES } from '../../../enums/user';
 
 const createToDB = async (payload: IStory) => {
   return await Story.create(payload);
 };
 
-const getAllFromDB = async (query: Record<string, any>) => {
-  const qb = new QueryBuilder(Story.find().populate('club','name'), query)
+const getAllFromDB = async (query: Record<string, any>, role: string) => {
+  // If role is 'USER', only fetch stories with published: true
+  let appQuery = query;
+
+  // If the user's role is 'USER', only fetch published stories
+  if (role && role ===  USER_ROLES.USER) {
+    query.published = true
+  }
+
+  const qb = new QueryBuilder(Story.find().populate('club', 'name published'), appQuery)
     .paginate()
     .search(['title', 'description'])
     .fields()

@@ -27,6 +27,10 @@ const sponsorSchema = new Schema<ISponsor, SponsorModel>(
       type: String,
       trim: true,
     },
+    publishing: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

@@ -9,6 +9,8 @@ export type IEvent = {
   description?: string;            // Event description
   eventDate?: Date;               // Event date
   eventTime?: string;             // Event time
+  enableToJoin?:Boolean,
+  joinStatus?:string;
   createdAt?: Date;
   updatedAt?: Date;
 };

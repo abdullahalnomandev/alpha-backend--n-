@@ -15,6 +15,7 @@ import { SettingsRoutes } from '../app/modules/settings/settings.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { ContactFormRoutes } from '../app/modules/contactForm/contactForm.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
+import { EventRegistrationRoutes } from '../app/modules/event/eventRegistration/eventRegistration.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -81,6 +82,10 @@ const apiRoutes = [
   {
     path: '/notification',
     route: NotificationRoutes,
+  },
+  {
+    path: '/event-registration',
+    route: EventRegistrationRoutes,
   },
 ];
 

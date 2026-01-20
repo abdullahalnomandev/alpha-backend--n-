@@ -14,6 +14,7 @@ const create = catchAsync(async (req: Request, res: Response) => {
     ...(image && { image }),
   };
 
+  console.log(data)
   const result = await SponsorService.createToDB(data);
   
   sendResponse(res, {
@@ -25,7 +26,7 @@ const create = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAll = catchAsync(async (req: Request, res: Response) => {
-  const result = await SponsorService.getAllFromDB(req.query);
+  const result = await SponsorService.getAllFromDB(req.query,req?.user?.role);
   
   sendResponse(res, {
     success: true,
@@ -49,28 +50,16 @@ const getById = catchAsync(async (req: Request, res: Response) => {
 
 const update = catchAsync(async (req: Request, res: Response) => {
   const id = req?.params?.id;
-  // Handle logo field (stored in image folder)
-  const files = req.files as any;
-  let logoPath, imagePath;
-  
-  if (files?.logo && Array.isArray(files.logo) && files.logo.length > 0) {
-    logoPath = `/image/${files.logo[0].filename}`;
-  }
-  
-  // Handle image field
+  const logo = getSingleFilePath(req.files, 'logo');
   const image = getSingleFilePath(req.files, 'image');
-  if (image) {
-    imagePath = image;
-  }
-  
   const data = {
     ...req.body,
-    ...(logoPath && { logo: logoPath }),
-    ...(imagePath && { image: imagePath }),
+    ...(logo && { logo }),
+    ...(image && { image }),
   };
-  
+
   const result = await SponsorService.updateInDB(id, data);
-  
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,

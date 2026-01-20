@@ -20,10 +20,13 @@ const storySchema = new Schema<IStory, StoryModel>(
       type: Schema.Types.ObjectId,
       ref: 'Club',
     },
+    published: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
 
 export const Story = model<IStory, StoryModel>('Story', storySchema);
-
 
