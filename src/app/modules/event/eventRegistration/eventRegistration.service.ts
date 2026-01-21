@@ -45,8 +45,10 @@ const getAllFromDB = async (query: Record<string, any>) => {
     ...query,
   };
 
+  const searchableFields = []; // No direct searchable fields here; see below.
+
   const qb = new QueryBuilder(
-    EventRegistration.find().populate('user'),
+    EventRegistration.find(),
     updatedQuery
   )
     .paginate()
@@ -54,8 +56,22 @@ const getAllFromDB = async (query: Record<string, any>) => {
     .filter()
     .sort();
 
-  const data = await qb.modelQuery.lean();
+  // Get registrations, then populate user (manually, since QueryBuilder doesn't support deep search)
+  let data = await qb.modelQuery.populate('user').lean();
   const pagination = await qb.getPaginationInfo();
+
+  // If searchTerm is present, filter the populated user fields manually in-memory
+  if (updatedQuery.searchTerm) {
+    const searchTerm = (updatedQuery.searchTerm as string).toLowerCase();
+    data = data.filter((doc: any) => {
+      const user = doc.user || {};
+      return (
+        (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+        (user.phone && user.phone.toLowerCase().includes(searchTerm))
+      );
+    });
+  }
 
   return {
     pagination,
@@ -64,7 +80,7 @@ const getAllFromDB = async (query: Record<string, any>) => {
 };
 
 const getByIdFromDB = async (id: string) => {
-  const registration = await EventRegistration.findById(id).lean();
+  const registration = await EventRegistration.findById(id).lean().populate('user');
 
   if (!registration) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Event registration not found');

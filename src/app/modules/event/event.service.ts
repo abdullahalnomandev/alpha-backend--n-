@@ -24,12 +24,24 @@ const getAllFromDB = async (query: Record<string, any>) => {
     .filter()
     .sort();
 
+  // Get events and pagination
   const data = await qb.modelQuery.lean();
   const pagination = await qb.getPaginationInfo();
 
+  // For each event, count registrations and add eventCount
+  const dataWithCount = await Promise.all(
+    data.map(async (event: any) => {
+      const eventCount = await EventRegistration.countDocuments({ event: event._id });
+      return {
+        ...event,
+        eventCount,
+      };
+    })
+  );
+
   return {
     pagination,
-    data,
+    data: dataWithCount,
   };
 };
 
@@ -40,24 +52,27 @@ const getByIdFromDB = async (id: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Event not found');
   }
 
-  // Check if a registration exists for this event; if not, joinStatus is 'none'
+  // Check registration for this event, otherwise joinStatus is 'none'
   const existingRegistration = await EventRegistration.findOne({ event: id }).lean();
 
-  // Calculate enableToJoin: true if eventDate is today or in the future
-  let enableToJoin = false;
+  let joinStatus = existingRegistration ? existingRegistration.status || 'ongoing' : 'ongoing';
+
+  // If eventDate is today or future, do not add enableToJoin.
+  // If past, and joinStatus would be 'none', set joinStatus to "time_exceeded"
   if (event.eventDate) {
     const eventDate = new Date(event.eventDate);
     const now = new Date();
-    // Remove time from both dates for "today" check
+    // Only date part
     const eventYMD = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
     const nowYMD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    enableToJoin = eventYMD >= nowYMD;
+    if (eventYMD < nowYMD && (!existingRegistration || joinStatus === 'ongoing')) {
+      joinStatus = 'time_exceeded';
+    }
   }
 
   return {
     ...event,
-    joinStatus: existingRegistration ? existingRegistration.status || 'none' : 'none',
-    enableToJoin,
+    joinStatus,
   };
 };
 
