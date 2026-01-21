@@ -5,6 +5,10 @@ import ApiError from '../../../../errors/ApiError';
 import QueryBuilder from '../../../builder/QueryBuilder';
 import { Event } from '../event.model';
 import { EventRegistrationStatus } from './enventRegistration.constant';
+import { USER_ROLES } from '../../../../enums/user';
+import { User } from '../../user/user.model';
+import { Notification } from '../../notification/notification.mode';
+import { NotificationCount } from '../../notification/notificationCountModel';
 
 const createToDB = async (payload: IEventRegistration) => {
   // Check if event exists
@@ -20,7 +24,36 @@ const createToDB = async (payload: IEventRegistration) => {
     throw new ApiError(StatusCodes.CONFLICT, 'User has already registered for this event');
   }
 
-  return await EventRegistration.create(payload);
+  // Create the registration
+  const registration = await EventRegistration.create(payload);
+
+  // 🔔 Notification to all admins
+  try {
+    // Assuming you have Admin model or query to get all admins
+    const admins = await User.find({ role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] } }); // Adjust as needed
+
+    for (const admin of admins) {
+      Notification.create({
+        receiver: admin._id,
+        title: "New Event Registration Submitted",
+        message: `User registered for event: ${eventExists.title || ""}`,
+        sender: user,
+        refId: registration._id,
+        path: "/event-registration",
+        seen: false,
+      }).catch(() => {});
+      // 🔢 Notification count
+      NotificationCount.findOneAndUpdate(
+        { user: admin._id },
+        { $inc: { count: 1 } },
+        { new: true, upsert: true }
+      ).catch(() => {});
+    }
+  } catch (e) {
+    // Swallow notification errors
+  }
+
+  return registration;
 };
 
 const cancelEvent = async ({ event, user }: { event: string; user: string }) => {
@@ -32,6 +65,26 @@ const cancelEvent = async ({ event, user }: { event: string; user: string }) => 
 
   if (registration.status && registration.status !== EventRegistrationStatus.PENDING) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not able to to cancel it');
+  }
+
+  // Notification to all admins about cancellation (remove), and decrease count
+  try {
+    const admins = await (global as any).User.find({ role: { $in: ['admin', 'super_admin'] } }); // Adjust as needed
+
+    for (const admin of admins) {
+      // Remove notification for this registration
+      Notification.deleteOne({
+        deleteReferenceId: registration._id,
+      }).catch(() => {});
+      // 🔻 Decrement notification count
+       NotificationCount.findOneAndUpdate(
+        { user: admin._id },
+        { $inc: { count: -1 } },
+        { new: true }
+      ).catch(() => {});
+    }
+  } catch (e) {
+    // Ignore notification errors
   }
 
   await EventRegistration.deleteOne({ _id: registration._id });
